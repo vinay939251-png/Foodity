@@ -3,17 +3,49 @@ from django.contrib.auth.models import User
 from .models import (
     UserProfile, Recipe, Ingredient, RecipeStep,
     Nutrition, Board, Like, Save, Comment,
-    Conversation, Message, MealLog,
+    Conversation, Message, MealLog, Follow,
 )
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'username', 'email', 'display_name', 'avatar_url', 'bio', 'created_at']
+        fields = [
+            'id', 'username', 'email', 'display_name',
+            'avatar_url', 'bio', 'followers_count',
+            'following_count', 'is_following', 'created_at'
+        ]
+
+    def get_followers_count(self, obj):
+        return obj.followers.count()
+
+    def get_following_count(self, obj):
+        return obj.following.count()
+
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # Check if current user follows this profile
+            profile = getattr(request.user, 'profile', None)
+            if profile and profile.id != obj.id:
+                from .models import Follow
+                return Follow.objects.filter(follower=profile, following=obj).exists()
+        return False
+
+
+class FollowSerializer(serializers.ModelSerializer):
+    follower = UserProfileSerializer(read_only=True)
+    following = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = Follow
+        fields = ['id', 'follower', 'following', 'created_at']
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -284,7 +316,7 @@ class MealLogSerializer(serializers.ModelSerializer):
             'id', 'date', 'meal_type', 'meal_name',
             'recipe', 'recipe_title', 'recipe_image',
             'calories', 'protein', 'carbs', 'fats',
-            'servings', 'created_at',
+            'servings', 'is_ai_estimated', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 

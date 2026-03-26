@@ -54,6 +54,7 @@ export const recipesAPI = {
   getComments: (id) => api.get(`/recipes/${id}/comments/`),
   addComment: (id, text, parentId) => api.post(`/recipes/${id}/comments/`, { text, parent_id: parentId }),
   generateAIAssistant: (data) => api.post('/recipes/ai-generate/', data),
+  generateNutrition: (data) => api.post('/recipes/ai-nutrition/', data),
   askAIChef: (id, message, history) => api.post(`/recipes/${id}/ask-ai/`, { message, history }),
 };
 
@@ -77,6 +78,10 @@ export const chatAPI = {
 export const usersAPI = {
   getProfile: (id) => api.get(`/users/${id}/`),
   search: (q) => api.get('/users/search/', { params: { q } }),
+  follow: (id) => api.post(`/users/${id}/follow/`),
+  getFollowers: (id) => api.get(`/users/${id}/followers/`),
+  getFollowing: (id) => api.get(`/users/${id}/following/`),
+  getLikedRecipes: (id) => api.get(`/users/${id}/liked/`),
 };
 
 // Tracker

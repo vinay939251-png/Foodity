@@ -5,6 +5,8 @@ from recipes.views import (
     BoardListCreateView, BoardDetailView, UserProfileView,
     ConversationListView, ConversationDetailView,
     UserSearchView, TrackerView, TrackerDeleteView,
+    FollowToggleView, FollowersListView, FollowingListView,
+    LikedRecipesListView,
 )
 
 urlpatterns = [
@@ -20,6 +22,10 @@ urlpatterns = [
     path('api/boards/<int:pk>/', BoardDetailView.as_view(), name='board-detail'),
     # User profiles
     path('api/users/<int:pk>/', UserProfileView.as_view(), name='user-profile'),
+    path('api/users/<int:pk>/follow/', FollowToggleView.as_view(), name='user-follow'),
+    path('api/users/<int:pk>/followers/', FollowersListView.as_view(), name='user-followers'),
+    path('api/users/<int:pk>/following/', FollowingListView.as_view(), name='user-following'),
+    path('api/users/<int:pk>/liked/', LikedRecipesListView.as_view(), name='user-liked'),
     path('api/users/search/', UserSearchView.as_view(), name='user-search'),
     # Chat
     path('api/chat/', ConversationListView.as_view(), name='chat-list'),

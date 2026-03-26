@@ -22,6 +22,7 @@ export default function RecipeDetail() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [checkedIngredients, setCheckedIngredients] = useState({});
 
   useEffect(() => {
     const fetchRecipe = async () => {
@@ -217,15 +218,15 @@ export default function RecipeDetail() {
 
         {/* Author */}
         {recipe.author && (
-          <div className="flex items-center justify-between mb-10 p-5 bg-white shadow-sm rounded-2xl border border-gray-100">
+          <Link to={`/profile/${recipe.author.id}`} className="flex items-center justify-between mb-10 p-5 bg-white shadow-sm rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all group/author">
             <div className="flex items-center gap-4">
-              <img src={recipe.author.avatar_url} alt="" className="w-12 h-12 rounded-full border border-gray-200" />
+              <img src={recipe.author.avatar_url} alt="" className="w-12 h-12 rounded-full border border-gray-200 group-hover/author:border-primary transition-colors" />
               <div>
-                <p className="text-gray-900 font-bold text-base">{recipe.author.display_name}</p>
+                <p className="text-gray-900 font-bold text-base group-hover/author:text-primary transition-colors">{recipe.author.display_name}</p>
                 <p className="text-gray-500 font-medium text-sm">@{recipe.author.username}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
               {user && user.id !== recipe.author.id && (
                 <Link to={`/chat?userId=${recipe.author.id}`}
                   className="px-5 py-2.5 bg-gray-100 border border-gray-200 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-colors">
@@ -242,7 +243,7 @@ export default function RecipeDetail() {
                 </Link>
               )}
             </div>
-          </div>
+          </Link>
         )}
 
         {/* Description */}
@@ -269,35 +270,106 @@ export default function RecipeDetail() {
 
         {/* Tab Content */}
         <div className="mb-16 animate-fade-in bg-white border border-gray-100 shadow-sm rounded-2xl p-6 sm:p-8">
-          {activeTab === 'ingredients' && (
-            <div className="space-y-3">
-              <h3 className="text-xl font-display font-bold text-gray-900 mb-6">What you'll need</h3>
-              {recipe.ingredients?.map((ing, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-orange-50 transition-colors group">
-                  <div className="w-5 h-5 rounded border-2 border-gray-300 group-hover:border-primary flex items-center justify-center shrink-0 transition-colors">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-transparent group-hover:bg-primary transition-colors" />
-                  </div>
-                  <span className="text-gray-800 text-base flex-1">{ing.name}</span>
-                  <span className="text-primary font-bold">{ing.quantity} {ing.unit}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {activeTab === 'ingredients' && (() => {
+            // Parse all ingredients — split semicolon-delimited entries into individual items
+            const allIngredients = [];
+            recipe.ingredients?.forEach(ing => {
+              const rawName = ing.name || '';
+              // If the name contains semicolons, it's a concatenated list
+              if (rawName.includes(';')) {
+                rawName.split(';').forEach(part => {
+                  const trimmed = part.trim();
+                  if (trimmed) allIngredients.push({ name: trimmed, quantity: '', unit: '' });
+                });
+              } else if (rawName.includes(',') && rawName.length > 80) {
+                // Very long comma-separated string — likely a list
+                rawName.split(',').forEach(part => {
+                  const trimmed = part.trim();
+                  if (trimmed) allIngredients.push({ name: trimmed, quantity: '', unit: '' });
+                });
+              } else {
+                allIngredients.push({ name: rawName, quantity: ing.quantity || '', unit: ing.unit || '' });
+              }
+            });
 
-          {activeTab === 'instructions' && (
-            <div className="space-y-6">
-              <h3 className="text-xl font-display font-bold text-gray-900 mb-6">Step-by-step instructions</h3>
-              {recipe.steps?.map((step, i) => (
-                <div key={i} className="flex gap-5 group">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center
-                    text-primary font-black text-lg shrink-0 border border-orange-200 shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
-                    {step.step_number}
+            return (
+              <div className="space-y-2">
+                <h3 className="text-xl font-display font-bold text-gray-900 mb-6">What you'll need</h3>
+                {allIngredients.map((ing, i) => {
+                  const isChecked = checkedIngredients[i] || false;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setCheckedIngredients(prev => ({ ...prev, [i]: !prev[i] }))}
+                      className={`w-full flex items-center gap-4 p-3.5 rounded-xl transition-all text-left group
+                        ${isChecked ? 'bg-green-50 border border-green-100' : 'hover:bg-orange-50 border border-transparent'}`}
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all
+                        ${isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover:border-primary'}`}>
+                        {isChecked && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`text-base flex-1 transition-all ${isChecked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                        {ing.name}
+                      </span>
+                      {(ing.quantity || ing.unit) && (
+                        <span className={`font-bold text-sm shrink-0 transition-all
+                          ${isChecked ? 'text-green-400' : 'text-primary'}`}>
+                          {ing.quantity} {ing.unit}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {activeTab === 'instructions' && (() => {
+            // Parse all steps — split paragraph-form instructions into individual sentences
+            const allSteps = [];
+            recipe.steps?.forEach(step => {
+              const raw = (step.instruction || '').trim();
+              if (!raw) return;
+              // Try to split by numbered patterns like "1." "2." etc.
+              const numberedSplit = raw.split(/(?:^|\.\s+)(?=\d+[\.\)]\s)/);
+              if (numberedSplit.length > 1) {
+                numberedSplit.forEach(s => {
+                  const cleaned = s.replace(/^\d+[\.\)]\s*/, '').trim();
+                  if (cleaned) allSteps.push(cleaned.replace(/\.$/, ''));
+                });
+              } else {
+                // Split by periods followed by a space and uppercase letter (sentence boundaries)
+                const sentences = raw.split(/\.\s+(?=[A-Z])/);
+                sentences.forEach(s => {
+                  const cleaned = s.trim().replace(/\.$/, '');
+                  if (cleaned && cleaned.length > 5) allSteps.push(cleaned);
+                });
+                // If only one sentence resulted, just use the whole text
+                if (allSteps.length === 0 && raw.length > 5) {
+                  allSteps.push(raw.replace(/\.$/, ''));
+                }
+              }
+            });
+
+            return (
+              <div className="space-y-5">
+                <h3 className="text-xl font-display font-bold text-gray-900 mb-6">Step-by-step instructions</h3>
+                {allSteps.map((stepText, i) => (
+                  <div key={i} className="flex gap-5 group">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center
+                      text-primary font-black text-lg shrink-0 border border-orange-200 shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
+                      {i + 1}
+                    </div>
+                    <p className="text-gray-700 text-base leading-relaxed pt-1.5">{stepText}.</p>
                   </div>
-                  <p className="text-gray-700 text-base leading-relaxed pt-1.5">{step.instruction}</p>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
 
           {activeTab === 'nutrition' && recipe.nutrition && (
             <div>
@@ -367,10 +439,12 @@ export default function RecipeDetail() {
             {comments.map(comment => (
               <div key={comment.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 transition-all hover:shadow-md">
                 <div className="flex items-start gap-4">
-                  <img src={comment.user?.avatar_url || ''} alt="" className="w-10 h-10 rounded-full shrink-0 border border-gray-200" />
+                  <Link to={`/profile/${comment.user?.id}`} className="shrink-0 group/comm">
+                    <img src={comment.user?.avatar_url || ''} alt="" className="w-10 h-10 rounded-full border border-gray-200 group-hover/comm:border-primary transition-colors" />
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-                      <span className="text-gray-900 text-base font-bold">{comment.user?.display_name}</span>
+                      <Link to={`/profile/${comment.user?.id}`} className="text-gray-900 text-base font-bold hover:text-primary transition-colors">{comment.user?.display_name}</Link>
                       <span className="text-gray-400 text-xs font-medium">
                         {new Date(comment.created_at).toLocaleDateString()}
                       </span>
@@ -389,10 +463,12 @@ export default function RecipeDetail() {
                       <div className="mt-5 space-y-4 pl-5 sm:pl-6 border-l-2 border-gray-100 relative">
                         {comment.replies.map(reply => (
                           <div key={reply.id} className="flex items-start gap-3">
-                            <img src={reply.user?.avatar_url || ''} alt="" className="w-8 h-8 rounded-full shrink-0 border border-gray-200" />
+                            <Link to={`/profile/${reply.user?.id}`} className="shrink-0 group/rep">
+                              <img src={reply.user?.avatar_url || ''} alt="" className="w-8 h-8 rounded-full border border-gray-200 group-hover/rep:border-primary transition-colors" />
+                            </Link>
                             <div className="flex-1 bg-gray-50 rounded-xl p-4 border border-gray-100">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="text-gray-900 text-sm font-bold">{reply.user?.display_name}</span>
+                                <Link to={`/profile/${reply.user?.id}`} className="text-gray-900 text-sm font-bold hover:text-primary transition-colors">{reply.user?.display_name}</Link>
                                 <span className="text-gray-400 text-[11px] font-medium">
                                   {new Date(reply.created_at).toLocaleDateString()}
                                 </span>

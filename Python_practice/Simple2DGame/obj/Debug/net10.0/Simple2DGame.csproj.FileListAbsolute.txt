@@ -1,0 +1,15 @@
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.AssemblyInfoInputs.cache
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.AssemblyInfo.cs
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.csproj.CoreCompileInputs.cache
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.sourcelink.json
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\bin\Debug\net10.0\Simple2DGame.exe
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\bin\Debug\net10.0\Simple2DGame.deps.json
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\bin\Debug\net10.0\Simple2DGame.runtimeconfig.json
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\bin\Debug\net10.0\Simple2DGame.dll
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\bin\Debug\net10.0\Simple2DGame.pdb
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.dll
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\refint\Simple2DGame.dll
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.pdb
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\Simple2DGame.genruntimeconfig.cache
+C:\Users\VINAY\Desktop\vinay\Python_practice\Simple2DGame\obj\Debug\net10.0\ref\Simple2DGame.dll

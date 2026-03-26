@@ -11,6 +11,7 @@ export default function RecipeForm() {
 
   const [isLoading, setIsLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -110,6 +111,38 @@ export default function RecipeForm() {
     const newSteps = formData.steps.filter((_, i) => i !== index)
       .map((step, i) => ({ ...step, step_number: i + 1 })); // Re-number
     setFormData(prev => ({ ...prev, steps: newSteps }));
+  };
+
+  // --- AI Nutrition ---
+  const handleGenerateNutrition = async () => {
+    if (!formData.title || formData.ingredients.length === 0 || !formData.ingredients[0].name) {
+      toast.error('Please enter a title and ingredients first');
+      return;
+    }
+
+    setIsGeneratingNutrition(true);
+    try {
+      const res = await recipesAPI.generateNutrition({
+        title: formData.title,
+        servings: formData.servings,
+        ingredients: formData.ingredients.filter(i => i.name.trim() !== '')
+      });
+      
+      setFormData(prev => ({
+        ...prev,
+        nutrition: {
+          calories: res.data.calories,
+          protein: res.data.protein,
+          carbs: res.data.carbs,
+          fats: res.data.fats
+        }
+      }));
+      toast.success('✨ Nutrition calculated via AI!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to calculate nutrition');
+    } finally {
+      setIsGeneratingNutrition(false);
+    }
   };
 
   // --- Submit ---
@@ -333,7 +366,21 @@ export default function RecipeForm() {
 
              {/* Nutrition */}
              <section className="space-y-4">
-              <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-2">Nutrition (Optional)</h2>
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h2 className="text-xl font-bold text-gray-900">Nutrition (Optional)</h2>
+                <button
+                  type="button"
+                  onClick={handleGenerateNutrition}
+                  disabled={isGeneratingNutrition}
+                  className="px-4 py-2 bg-gradient-to-r from-orange-500 to-primary text-white text-sm font-bold rounded-xl shadow-md shadow-primary/20 hover:from-orange-600 hover:to-orange-500 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:transform-none flex items-center gap-2"
+                >
+                  {isGeneratingNutrition ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Estimating...</>
+                  ) : (
+                    <>✨ Auto-Fill with AI</>
+                  )}
+                </button>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>

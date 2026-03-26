@@ -11,6 +11,7 @@ export default function AuthModal({ isOpen, onClose }) {
     email: '',
     username: '',
     password: '',
+    confirmPassword: '',
     displayName: ''
   });
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,11 @@ export default function AuthModal({ isOpen, onClose }) {
         await login(formData.username, formData.password);
         toast.success(`Welcome back, ${formData.username}! 🍳`);
       } else {
+        if (formData.password !== formData.confirmPassword) {
+          toast.error('Passwords do not match');
+          setLoading(false);
+          return;
+        }
         await register(formData.username, formData.email, formData.password, formData.displayName);
         await login(formData.username, formData.password);
         toast.success('Account created! Welcome to Foodity! 🎉');
@@ -116,6 +122,17 @@ export default function AuthModal({ isOpen, onClose }) {
                 value={formData.password} onChange={handleChange}
               />
             </div>
+            
+            {!isLogin && (
+              <div>
+                <input
+                  name="confirmPassword" type="password" placeholder="Confirm Password" required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm
+                    placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-medium shadow-sm"
+                  value={formData.confirmPassword} onChange={handleChange}
+                />
+              </div>
+            )}
 
             <button
               type="submit"

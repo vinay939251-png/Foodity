@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { chatAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -210,12 +210,14 @@ export default function Chat() {
                       ${isActive ? 'bg-orange-50/80 border-l-4 border-l-primary' : 'hover:bg-gray-100/80 border-l-4 border-l-transparent'}`}
                   >
                     <div className="relative">
-                       <img src={otherUser.avatar_url} alt="" className="w-12 h-12 rounded-full border border-gray-200 object-cover" />
+                       <Link to={`/profile/${otherUser.id}`} onClick={e => e.stopPropagation()} className="block">
+                         <img src={otherUser.avatar_url} alt="" className="w-12 h-12 rounded-full border border-gray-200 object-cover hover:border-primary transition-colors" />
+                       </Link>
                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-0.5">
-                         <p className="text-gray-900 font-bold text-sm truncate">{otherUser.display_name}</p>
+                         <Link to={`/profile/${otherUser.id}`} onClick={e => e.stopPropagation()} className="text-gray-900 font-bold text-sm truncate hover:text-primary transition-colors">{otherUser.display_name}</Link>
                          <p className="text-gray-400 text-xs text-right whitespace-nowrap ml-2">
                            {new Date(convo.updated_at).toLocaleDateString(undefined, {month: 'short', day:'numeric'})}
                          </p>
@@ -237,9 +239,17 @@ export default function Chat() {
             <>
               {/* Chat Header */}
               <div className="h-16 px-6 border-b border-gray-100 flex items-center shadow-sm z-10 bg-white">
-                <span className="font-bold text-gray-900">
-                  {activeConvo.participants.find(p => p.id !== user?.id)?.display_name}&apos;s Chat
-                </span>
+                {(() => {
+                  const chatPartner = activeConvo.participants.find(p => p.id !== user?.id);
+                  return chatPartner ? (
+                    <Link to={`/profile/${chatPartner.id}`} className="flex items-center gap-3 group/header">
+                      <img src={chatPartner.avatar_url} alt="" className="w-9 h-9 rounded-full border border-gray-200 group-hover/header:border-primary transition-colors" />
+                      <span className="font-bold text-gray-900 group-hover/header:text-primary transition-colors">
+                        {chatPartner.display_name}
+                      </span>
+                    </Link>
+                  ) : null;
+                })()}
               </div>
 
               {/* Messages feed */}
@@ -254,7 +264,9 @@ export default function Chat() {
                     return (
                       <div key={msg.id} className={`flex max-w-[75%] ${isMe ? 'self-end' : 'self-start'}`}>
                         {!isMe && (
-                          <img src={msg.sender.avatar_url} alt="" className="w-8 h-8 rounded-full mr-3 mt-auto mb-1 border border-gray-200" />
+                          <Link to={`/profile/${msg.sender.id}`} className="shrink-0">
+                            <img src={msg.sender.avatar_url} alt="" className="w-8 h-8 rounded-full mr-3 mt-auto mb-1 border border-gray-200 hover:border-primary transition-colors" />
+                          </Link>
                         )}
                         <div className="flex flex-col gap-2">
                            {msg.shared_recipe && (

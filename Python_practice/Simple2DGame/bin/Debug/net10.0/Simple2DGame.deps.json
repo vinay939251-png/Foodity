@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "Simple2DGame/1.0.0": {
+        "runtime": {
+          "Simple2DGame.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Simple2DGame/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -13,5 +13,6 @@ urlpatterns = [
     
     # AI Generator
     path('ai-generate/', views.AIGenerateRecipeView.as_view(), name='ai-generate'),
+    path('ai-nutrition/', views.GenerateNutritionView.as_view(), name='ai-nutrition'),
     path('<int:pk>/ask-ai/', views.AskAIChefView.as_view(), name='ask-ai'),
 ]

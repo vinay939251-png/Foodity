@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { chatAPI } from '../services/api';
@@ -110,10 +111,14 @@ export default function ShareModal({ isOpen, onClose, recipe }) {
                         disabled={sendingTo === convo.id}
                         className="w-full flex items-center justify-between p-3 rounded-xl bg-white hover:bg-orange-50 border border-transparent hover:border-orange-100 shadow-sm transition-all group disabled:opacity-50"
                       >
-                        <div className="flex items-center gap-3">
+                        <Link
+                          to={`/profile/${otherUser.id}`}
+                          onClick={(e) => { e.stopPropagation(); onClose(); }}
+                          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                        >
                           <img src={otherUser.avatar_url} alt="" className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200" />
                           <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900 transition-colors">{otherUser.display_name}</span>
-                        </div>
+                        </Link>
                         <span className="text-primary text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-orange-100 px-3 py-1.5 rounded-lg">
                           {sendingTo === convo.id ? 'Sending...' : 'Send'}
                         </span>

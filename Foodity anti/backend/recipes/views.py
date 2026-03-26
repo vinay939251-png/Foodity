@@ -10,14 +10,14 @@ from django.db import IntegrityError
 from .models import (
     Recipe, Ingredient, RecipeStep, Nutrition,
     UserProfile, Board, Like, Save, Comment,
-    Conversation, Message, MealLog,
+    Conversation, Message, MealLog, Follow,
 )
 from .serializers import (
     RecipeListSerializer, RecipeDetailSerializer,
     UserProfileSerializer, BoardSerializer, BoardWithRecipesSerializer,
     CommentSerializer, LikeSerializer, SaveSerializer,
     ConversationListSerializer, MessageSerializer,
-    MealLogSerializer,
+    MealLogSerializer, FollowSerializer,
 )
 
 
@@ -133,21 +133,7 @@ class RecipeListView(generics.ListCreateAPIView):
         serializer.save(author=self.request.user.profile)
 
     def get_queryset(self):
-        qs = Recipe.objects.select_related('author__user').annotate(
-            has_image=Case(
-                When(Q(image__exact='') | Q(image__isnull=True), then=Value(False)),
-                default=Value(True),
-                output_field=BooleanField()
-            ),
-            ing_count=Count('ingredients', distinct=True),
-            step_count=Count('steps', distinct=True)
-        ).annotate(
-            is_complete=Case(
-                When(Q(has_image=True) & Q(ing_count__gt=0) & Q(step_count__gt=0), then=Value(True)),
-                default=Value(False),
-                output_field=BooleanField()
-            )
-        )
+        qs = Recipe.objects.select_related('author__user')
 
         search = self.request.query_params.get('search')
         if search:
@@ -170,12 +156,15 @@ class RecipeListView(generics.ListCreateAPIView):
             for kw in keywords:
                 q |= Q(title__icontains=kw) | Q(description__icontains=kw)
             qs = qs.filter(q)
-        ordering = self.request.query_params.get('ordering', '?')
+        ordering = self.request.query_params.get('ordering', '-created_at')
         allowed = ['created_at', '-created_at', 'rating', '-rating', 'likes_count', '-likes_count']
         if ordering in allowed:
             qs = qs.order_by('-is_complete', ordering)
         elif ordering == '?':
+            # Still allow random but it will be slower, though indexed is_complete helps
             qs = qs.order_by('-is_complete', '?')
+        else:
+            qs = qs.order_by('-is_complete', '-created_at')
         return qs
 
     def get_serializer_context(self):
@@ -375,15 +364,60 @@ class UserProfileView(APIView):
             boards = Board.objects.filter(owner=profile, is_public=True).prefetch_related('saves__recipe')
 
         return Response({
-            'user': UserProfileSerializer(profile).data,
-            'recipes': RecipeListSerializer(recipes, many=True).data,
+            'user': UserProfileSerializer(profile, context={'request': request}).data,
+            'recipes': RecipeListSerializer(recipes, many=True, context={'request': request}).data,
             'boards': BoardWithRecipesSerializer(boards, many=True, context={'request': request}).data,
             'stats': {
                 'recipes_count': Recipe.objects.filter(author=profile).count(),
-                'likes_given': Like.objects.filter(user=profile).count(),
+                'followers_count': profile.followers.count(),
+                'following_count': profile.following.count(),
                 'boards_count': boards.count(),
             },
         })
+
+
+# ============================================================
+# FOLLOWERS / FOLLOWING
+# ============================================================
+
+class FollowToggleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            target_profile = UserProfile.objects.get(pk=pk)
+        except UserProfile.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=404)
+        
+        my_profile = request.user.profile
+        if target_profile == my_profile:
+            return Response({'error': 'You cannot follow yourself.'}, status=400)
+            
+        follow, created = Follow.objects.get_or_create(follower=my_profile, following=target_profile)
+        
+        if not created:
+            follow.delete()
+            return Response({'following': False})
+            
+        return Response({'following': True}, status=201)
+
+
+class FollowersListView(generics.ListAPIView):
+    serializer_class = FollowSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        pk = self.kwargs.get('pk')
+        return Follow.objects.filter(following_id=pk).select_related('follower__user')
+
+
+class FollowingListView(generics.ListAPIView):
+    serializer_class = FollowSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        pk = self.kwargs.get('pk')
+        return Follow.objects.filter(follower_id=pk).select_related('following__user')
 
 
 # ============================================================
@@ -454,8 +488,33 @@ class ConversationDetailView(APIView):
                 return Response({'error': 'Recipe not found.'}, status=404)
         msg = Message.objects.create(
             conversation=convo, sender=profile, text=text, shared_recipe=shared_recipe)
-        convo.save()
+        convo.save() # Update conversation's updated_at
         return Response(MessageSerializer(msg).data, status=201)
+
+
+class LikedRecipesListView(generics.ListAPIView):
+    serializer_class = RecipeListSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        pk = self.kwargs.get('pk')
+        try:
+            profile = UserProfile.objects.get(pk=pk)
+            liked_ids = list(Like.objects.filter(user=profile).values_list('recipe_id', flat=True))
+            print(f"DEBUG: Found {len(liked_ids)} liked recipes for user {pk}")
+            return Recipe.objects.filter(id__in=liked_ids).select_related('author__user')
+        except UserProfile.DoesNotExist:
+            print(f"DEBUG: UserProfile {pk} not found")
+            return Recipe.objects.none()
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        if self.request.user.is_authenticated:
+            p = getattr(self.request.user, 'profile', None)
+            if p:
+                ctx['liked_recipe_ids'] = set(Like.objects.filter(user=p).values_list('recipe_id', flat=True))
+                ctx['saved_recipe_ids'] = set(Save.objects.filter(user=p).values_list('recipe_id', flat=True))
+        return ctx
 
 
 # ============================================================
@@ -624,6 +683,7 @@ class TrackerView(APIView):
     def post(self, request):
         profile = request.user.profile
         data = request.data.copy()
+        ai_estimated = False
 
         # If recipe_id provided, auto-fill nutrition from recipe
         recipe_id = data.get('recipe')
@@ -644,11 +704,14 @@ class TrackerView(APIView):
         if not data.get('date'):
             data['date'] = str(dt_date.today())
 
-        # Auto-calculate nutrition with AI if manual entry has name but no macros
+        # Auto-calculate nutrition with AI if manual entry has name but missing macros
         if not recipe_id and data.get('meal_name'):
-            # Check if all macros are empty/zero
-            has_macros = any(data.get(f) for f in ['calories', 'protein', 'carbs', 'fats'])
-            if not has_macros:
+            macro_fields = ['calories', 'protein', 'carbs', 'fats']
+            # Check if ANY macro is missing or zero — fill all via AI
+            has_all_macros = all(
+                float(data.get(f, 0) or 0) > 0 for f in macro_fields
+            )
+            if not has_all_macros:
                 try:
                     import google.generativeai as genai
                     from django.conf import settings
@@ -658,12 +721,18 @@ class TrackerView(APIView):
                         genai.configure(api_key=settings.GEMINI_API_KEY)
                         model = genai.GenerativeModel('gemini-2.5-flash')
                         
-                        prompt = f"""
-                        Estimate the nutritional values for 1 serving of: "{data['meal_name']}".
-                        Return ONLY a raw JSON object with keys "calories", "protein", "carbs", and "fats" with numeric values.
-                        Example: {{"calories": 300, "protein": 15, "carbs": 30, "fats": 10}}
-                        """
-                        response = model.generate_content(prompt)
+                        servings = float(data.get('servings', 1))
+                        prompt = f"""Estimate the nutritional values for {servings} serving(s) of: "{data['meal_name']}".
+This is likely an Indian meal. Use standard Indian serving sizes and portions.
+For example, 1 serving of Dal Chawal = ~1 bowl dal + 1 plate rice.
+
+Return ONLY a raw JSON object (no markdown) with these keys and numeric values:
+{{"calories": 350, "protein": 12, "carbs": 55, "fats": 8}}
+"""
+                        response = model.generate_content(
+                            prompt,
+                            generation_config=genai.types.GenerationConfig(temperature=0.3),
+                        )
                         text = response.text.strip()
                         if text.startswith('```json'): text = text[7:]
                         if text.startswith('```'): text = text[3:]
@@ -674,15 +743,19 @@ class TrackerView(APIView):
                         data['protein'] = round(float(ai_data.get('protein', 0)), 1)
                         data['carbs'] = round(float(ai_data.get('carbs', 0)), 1)
                         data['fats'] = round(float(ai_data.get('fats', 0)), 1)
-                        data['notes'] = "Nutrition estimated by AI" # Optional: might need to add field or ignore
+                        ai_estimated = True
                 except Exception as e:
-                    print("AI inference failed:", str(e))
-                    pass # Silently fail and proceed with empty macros if AI fails
+                    print("AI nutrition estimation failed:", str(e))
+                    # Silently proceed with empty/partial macros
+
+        data['is_ai_estimated'] = ai_estimated
 
         serializer = MealLogSerializer(data=data)
         if serializer.is_valid():
             serializer.save(user=profile)
-            return Response(serializer.data, status=201)
+            response_data = serializer.data
+            response_data['ai_estimated'] = ai_estimated
+            return Response(response_data, status=201)
         return Response(serializer.errors, status=400)
 
 
@@ -753,3 +826,51 @@ User's Question: {message}
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=500)
+
+class GenerateNutritionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not settings.GEMINI_API_KEY:
+            return Response({'error': 'Gemini API not configured'}, status=503)
+
+        title = request.data.get('title', 'Unknown Recipe')
+        servings = request.data.get('servings', 1)
+        ingredients = request.data.get('ingredients', [])
+
+        if not ingredients:
+            return Response({'error': 'Ingredients are required for estimation'}, status=400)
+
+        ing_text = "\n".join([f"- {i.get('quantity', '')} {i.get('unit', '')} {i.get('name', '')}".strip() for i in ingredients])
+
+        prompt = f"""Estimate the total nutritional values for {servings} serving(s) of a recipe called "{title}".
+The ingredients for the ENTIRE recipe are:
+{ing_text}
+
+Calculate the nutrition for exactly {servings} serving(s). If this is an Indian recipe, use standard Indian serving sizes.
+Return ONLY a raw JSON object (no markdown, no backticks) with these keys and numeric values representing the total per serving:
+{{"calories": 350, "protein": 12, "carbs": 55, "fats": 8}}
+"""
+        try:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(temperature=0.2),
+            )
+            text = response.text.strip()
+            if text.startswith('```json'): text = text[7:]
+            if text.startswith('```'): text = text[3:]
+            if text.endswith('```'): text = text[:-3]
+            
+            ai_data = json.loads(text.strip())
+            
+            return Response({
+                'calories': round(float(ai_data.get('calories', 0)), 1),
+                'protein': round(float(ai_data.get('protein', 0)), 1),
+                'carbs': round(float(ai_data.get('carbs', 0)), 1),
+                'fats': round(float(ai_data.get('fats', 0)), 1)
+            })
+        except Exception as e:
+            print("Recipe nutrition estimation failed:", str(e))
+            return Response({'error': 'AI estimation failed. Please try again or enter manually.'}, status=500)

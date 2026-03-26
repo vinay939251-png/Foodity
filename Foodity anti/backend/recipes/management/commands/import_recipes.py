@@ -434,9 +434,9 @@ class Command(BaseCommand):
             'steps': ['steps', 'directions', 'instructions', 'recipeinstructions',
                       'recipe_instructions', 'method'],
             'calories': ['calories', 'cal', 'kcal', 'energy'],
-            'protein': ['protein', 'proteincontentg', 'proteincontent'],
-            'carbs': ['carbs', 'carbohydrates', 'carbohydratecontent', 'carb'],
-            'fats': ['fats', 'fat', 'fatcontent', 'totalfat'],
+            'protein': ['protein', 'protein_g', 'proteincontentg', 'proteincontent'],
+            'carbs': ['carbs', 'carbohydrates', 'carbohydrates_g', 'carbohydratecontent', 'carb'],
+            'fats': ['fats', 'fat', 'fat_g', 'fatcontent', 'totalfat'],
         }
 
         for key, aliases in mappings.items():

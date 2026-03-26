@@ -51,6 +51,7 @@ export default function Tracker() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [aiEstimating, setAiEstimating] = useState(false);
 
   const fetchTracker = useCallback(async () => {
     try {
@@ -93,8 +94,10 @@ export default function Tracker() {
 
   const handleAddManual = async (mealType) => {
     if (!manualForm.meal_name.trim()) { toast.info('Enter a meal name'); return; }
+    const hasMacros = manualForm.calories || manualForm.protein || manualForm.carbs || manualForm.fats;
+    if (!hasMacros) setAiEstimating(true);
     try {
-      await trackerAPI.add({
+      const res = await trackerAPI.add({
         meal_type: mealType,
         date,
         meal_name: manualForm.meal_name,
@@ -103,12 +106,18 @@ export default function Tracker() {
         carbs: parseFloat(manualForm.carbs) || 0,
         fats: parseFloat(manualForm.fats) || 0,
       });
-      toast.success('Meal logged! ✅');
+      if (res.data.ai_estimated) {
+        toast.success(`🤖 AI estimated: ${Math.round(res.data.calories)} cal, ${Math.round(res.data.protein)}g protein`);
+      } else {
+        toast.success('Meal logged! ✅');
+      }
       setManualForm({ meal_name: '', calories: '', protein: '', carbs: '', fats: '' });
       setAddingTo(null);
       fetchTracker();
     } catch {
       toast.error('Failed to log meal');
+    } finally {
+      setAiEstimating(false);
     }
   };
 
@@ -234,7 +243,14 @@ export default function Tracker() {
                             <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-lg">🍽️</div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm truncate">{meal.meal_name || meal.recipe_title || 'Meal'}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-gray-900 text-sm truncate">{meal.meal_name || meal.recipe_title || 'Meal'}</p>
+                              {meal.is_ai_estimated && (
+                                <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded-md text-[10px] font-bold border border-violet-100">
+                                  🤖 AI
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-gray-400">
                               {Math.round(meal.calories)} cal • {Math.round(meal.protein)}g P • {Math.round(meal.carbs)}g C • {Math.round(meal.fats)}g F
                             </p>
@@ -305,11 +321,14 @@ export default function Tracker() {
                       <div className="space-y-3">
                         <input
                           type="text"
-                          placeholder="Meal name"
+                          placeholder="Meal name (e.g. Dal Chawal, Paratha, Biryani)"
                           value={manualForm.meal_name}
                           onChange={e => setManualForm({ ...manualForm, meal_name: e.target.value })}
                           className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
                         />
+                        <div className="flex items-center gap-2 px-1">
+                          <span className="text-[11px] text-violet-500 font-medium">🤖 Leave nutrition empty — AI will auto-estimate!</span>
+                        </div>
                         <div className="grid grid-cols-4 gap-2">
                           {['calories', 'protein', 'carbs', 'fats'].map(f => (
                             <input
@@ -318,15 +337,21 @@ export default function Tracker() {
                               placeholder={f.charAt(0).toUpperCase() + f.slice(1)}
                               value={manualForm[f]}
                               onChange={e => setManualForm({ ...manualForm, [f]: e.target.value })}
-                              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+                              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 placeholder-gray-300"
                             />
                           ))}
                         </div>
                         <button
                           onClick={() => handleAddManual(key)}
-                          className="w-full py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors shadow-sm"
+                          disabled={aiEstimating}
+                          className="w-full py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors shadow-sm disabled:opacity-60 flex items-center justify-center gap-2"
                         >
-                          Log Meal
+                          {aiEstimating ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              AI is estimating nutrition...
+                            </>
+                          ) : 'Log Meal'}
                         </button>
                       </div>
                     </div>

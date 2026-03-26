@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -43,10 +45,11 @@ class Recipe(models.Model):
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
     )
-    likes_count = models.PositiveIntegerField(default=0)
-    saves_count = models.PositiveIntegerField(default=0)
+    likes_count = models.PositiveIntegerField(default=0, db_index=True)
+    saves_count = models.PositiveIntegerField(default=0, db_index=True)
+    is_complete = models.BooleanField(default=False, db_index=True)
     is_ai_generated = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -228,6 +231,7 @@ class MealLog(models.Model):
     carbs = models.FloatField(default=0)
     fats = models.FloatField(default=0)
     servings = models.FloatField(default=1)
+    is_ai_estimated = models.BooleanField(default=False, help_text='Nutrition was auto-estimated by AI')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -240,3 +244,51 @@ class MealLog(models.Model):
         return f'{self.user} - {self.meal_type} - {self.meal_name or "meal"} ({self.date})'
 
 
+class Follow(models.Model):
+    """Tracks follower-following relationships between users."""
+    follower = models.ForeignKey(UserProfile, related_name='following', on_delete=models.CASCADE)
+    following = models.ForeignKey(UserProfile, related_name='followers', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'following')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.follower} follows {self.following}'
+
+
+# Signals for is_complete denormalization
+@receiver([post_save, post_delete], sender='recipes.Ingredient')
+@receiver([post_save, post_delete], sender='recipes.RecipeStep')
+def update_recipe_completeness(sender, instance, **kwargs):
+    if sender.__name__ == 'Ingredient':
+        recipe = instance.recipe
+    else:
+        recipe = instance.recipe
+        
+    has_image = bool(recipe.image)
+    ing_count = recipe.ingredients.count()
+    step_count = recipe.steps.count()
+    
+    is_complete = has_image and ing_count > 0 and step_count > 0
+    if recipe.is_complete != is_complete:
+        recipe.is_complete = is_complete
+        recipe.save(update_fields=['is_complete'])
+
+@receiver(post_save, sender=Recipe)
+def update_recipe_on_save(sender, instance, created, **kwargs):
+    # If image changed, we might need to re-check
+    # But wait, avoid infinite recursion. 
+    # Only update if it's not a save(update_fields=['is_complete'])
+    if kwargs.get('update_fields') and 'is_complete' in kwargs.get('update_fields'):
+        return
+        
+    has_image = bool(instance.image)
+    ing_count = instance.ingredients.count()
+    step_count = instance.steps.count()
+    
+    is_complete = has_image and ing_count > 0 and step_count > 0
+    if instance.is_complete != is_complete:
+        instance.is_complete = is_complete
+        instance.save(update_fields=['is_complete'])
