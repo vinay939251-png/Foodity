@@ -1,0 +1,54 @@
+Creating test database for alias 'default'...
+
+C:\Users\VINAY\Documents\vinay\Foodity anti\backend\recipes\views.py:661: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+FF..E...
+======================================================================
+ERROR: test_list_recipes (recipes.tests.RecipeTests.test_list_recipes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\VINAY\Documents\vinay\Foodity anti\backend\recipes\tests.py", line 50, in test_list_recipes
+    Recipe.objects.create(author=self.profile, title='Recipe 1', description='Desc 1', preparation_time=10)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\VINAY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\VINAY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\django\db\models\query.py", line 667, in create
+    obj = self.model(**kwargs)
+  File "C:\Users\VINAY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\django\db\models\base.py", line 590, in __init__
+    raise TypeError(
+    ...<2 lines>...
+    )
+TypeError: Recipe() got unexpected keyword arguments: 'preparation_time'
+
+======================================================================
+FAIL: test_login (recipes.tests.AuthenticationTests.test_login)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\VINAY\Documents\vinay\Foodity anti\backend\recipes\tests.py", line 25, in test_login
+    self.assertEqual(res.status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 401 != 200
+
+======================================================================
+FAIL: test_registration (recipes.tests.AuthenticationTests.test_registration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\VINAY\Documents\vinay\Foodity anti\backend\recipes\tests.py", line 16, in test_registration
+    self.assertIn('token', res.data)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 'token' not found in {'user': {'id': 1, 'username': 'testuser', 'email': 'test@example.com', 'display_name': 'Test User', 'avatar_url': 'https://api.dicebear.com/7.x/avataaars/svg?seed=testuser', 'bio': '', 'followers_count': 0, 'following_count': 0, 'is_following': False, 'created_at': '2026-03-26T17:31:06.669798Z'}, 'tokens': {'access': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc1MTUxMDY2LCJpYXQiOjE3NzQ1NDYyNjYsImp0aSI6Ijk1YWZlYzlmNTkyNDQwMTZhZWJlMWFjODc1M2I4OTlhIiwidXNlcl9pZCI6MX0.8S6fyDVTMBlqlQoQ6dMZlFKucF5HGoht77jAfiiuoxk', 'refresh': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc3NzEzODI2NiwiaWF0IjoxNzc0NTQ2MjY2LCJqdGkiOiIzMzc3OWIzZDc2YTM0YWZlOGI4ZjQ2NTZmMjc4NTUxNCIsInVzZXJfaWQiOjF9.erAVobR6gISru50QFNG4SjqJJRYVrMsOngoTRNKMUKo'}}
+
+----------------------------------------------------------------------
+Ran 8 tests in 4.409s
+
+FAILED (failures=2, errors=1)
+Destroying test database for alias 'default'...
+
